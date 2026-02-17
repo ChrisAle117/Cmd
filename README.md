@@ -1,4 +1,4 @@
-# 🖥️ Retro CRT Terminal Website
+# 🖥️ Terminal Website
 
 Un sitio web personal estilo terminal retro con efectos CRT (tubo de rayos catódicos), construido con React, Vite y TypeScript.
 

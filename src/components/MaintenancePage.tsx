@@ -33,7 +33,7 @@ export function MaintenancePage() {
   const [chatHistory, setChatHistory] = useState<{ type: 'user' | 'bot' | 'system', text: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => Math.random().toString(36).substring(7));
-  const webhookUrl = "http://localhost:5678/webhook/35ee142f-67f1-496a-8792-4d48b27090de/chat";
+  const webhookUrl = "https://dockerfile-5rir.onrender.com/webhook/35ee142f-67f1-496a-8792-4d48b27090de/chat";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const maintainanceContentRef = useRef<HTMLDivElement>(null);

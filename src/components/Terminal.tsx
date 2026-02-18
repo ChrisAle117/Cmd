@@ -83,7 +83,7 @@ export function Terminal() {
   const [matrixMode, setMatrixMode] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const webhookUrl = "http://localhost:5678/webhook/35ee142f-67f1-496a-8792-4d48b27090de/chat";
+  const webhookUrl = "https://dockerfile-5rir.onrender.com/webhook/35ee142f-67f1-496a-8792-4d48b27090de/chat";
 
   useEffect(() => {
     if (terminalRef.current) {

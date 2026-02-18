@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Input } from "./ui/input";
+
 
 interface TerminalLine {
   type: "command" | "output" | "system";
@@ -37,6 +37,7 @@ const commands = {
       "  whoami   - Display current user",
       "  echo     - Echo text back",
       "  calc     - Simple calculator (e.g., calc 2+2)",
+      "  chat     - Enter AI Chat Mode",
     ],
   },
   about: {
@@ -76,16 +77,20 @@ export function Terminal() {
     string[]
   >([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isChatMode, setIsChatMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId] = useState(() => Math.random().toString(36).substring(7));
   const [matrixMode, setMatrixMode] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const webhookUrl = "http://localhost:5678/webhook/35ee142f-67f1-496a-8792-4d48b27090de/chat";
 
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop =
         terminalRef.current.scrollHeight;
     }
-  }, [lines]);
+  }, [lines, isLoading]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -93,9 +98,77 @@ export function Terminal() {
     }
   }, []);
 
+  const sendMessageToWebhook = async (text: string) => {
+    setIsLoading(true);
+    setLines((prev) => [
+      ...prev,
+      {
+        type: "command",
+        text: `AI-CHAT> ${text}`,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "sendMessage",
+          chatInput: text,
+          sessionId: sessionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Assuming standard n8n chat response structure, modify if needed based on actual response
+      // Usually it returns an array of messages or a single text field
+      const botMessage = data.output || data.text || JSON.stringify(data);
+
+      setLines((prev) => [
+        ...prev,
+        {
+          type: "output",
+          text: botMessage,
+        },
+      ]);
+    } catch (error) {
+      setLines((prev) => [
+        ...prev,
+        {
+          type: "system",
+          text: "Error: Connection to AI server failed.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCommand = (input: string) => {
-    const [cmd, ...args] = input
-      .trim()
+    const trimmedInput = input.trim();
+    if (!trimmedInput) return;
+
+    // Chat function
+    if (isChatMode) {
+      if (trimmedInput.toLowerCase() === "exit") {
+        setIsChatMode(false);
+        setLines((prev) => [
+          ...prev,
+          { type: "system", text: "Exiting Chat Mode..." },
+          { type: "system", text: "Returned to RETRO-OS." },
+        ]);
+        return;
+      }
+
+      sendMessageToWebhook(trimmedInput);
+      return;
+    }
+
+    const [cmd, ...args] = trimmedInput
       .toLowerCase()
       .split(" ");
     const timestamp = new Date().toLocaleTimeString();
@@ -117,6 +190,17 @@ export function Terminal() {
     // Process command
     if (cmd === "clear") {
       setLines([]);
+      return;
+    }
+
+    if (cmd === "chat") {
+      setIsChatMode(true);
+      setLines((prev) => [
+        ...prev,
+        { type: "system", text: "Initializing AI Uplink..." },
+        { type: "system", text: "Connection Established." },
+        { type: "output", text: "Type 'exit' to return to system." },
+      ]);
       return;
     }
 
@@ -149,8 +233,8 @@ export function Terminal() {
         // Simple calculator - only allow basic operations
         const result = Function(
           '"use strict"; return (' +
-            expression.replace(/[^0-9+\-*/().]/g, "") +
-            ")",
+          expression.replace(/[^0-9+\-*/().]/g, "") +
+          ")",
         )();
         setLines((prev) => [
           ...prev,
@@ -261,20 +345,28 @@ export function Terminal() {
           </div>
         ))}
 
-        <div className="flex items-center mt-2">
-          <span className="text-primary mr-2">C:\&gt;</span>
-          <Input
-            ref={inputRef}
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="border-none bg-transparent p-0 focus:ring-0 text-primary font-mono"
-            style={{
-              boxShadow: "none",
-              outline: "none",
-            }}
-          />
-          <span className="cursor w-2 h-4 ml-1">&nbsp;</span>
+        <div className="flex items-center mt-2 relative">
+          <span className={`mr-2 font-mono ${isChatMode ? "text-cyan-400" : "text-primary"}`}>
+            {isChatMode ? "AI-CHAT>" : "C:\\>"}
+          </span>
+
+          <div className="flex-1 flex items-center relative">
+            <span className="whitespace-pre-wrap font-mono text-primary">{currentInput}</span>
+            <span className={`cursor w-2 h-5 align-middle ${isLoading ? "animate-pulse" : ""}`}>
+              {isLoading ? "█" : "\u00A0"}
+            </span>
+
+            <input
+              ref={inputRef}
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="absolute inset-0 opacity-0 cursor-default h-full w-full"
+              autoFocus
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </div>
         </div>
       </div>
     </div>
